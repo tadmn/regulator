@@ -21,7 +21,6 @@ import numpy as np
 import sounddevice as sd
 import soundfile as sf
 from pathlib import Path
-import threading
 import time
 
 # Get the directory where this script is located
@@ -229,22 +228,13 @@ class SpectrogramLabeler:
         # Update spectrogram to highlight current segment
         self.plot_spectrogram(highlight_segment=segment)
 
-        # Play in background thread
+        # Play audio on main thread
         self.playing = True
-        threading.Thread(target=self._play_audio, args=(segment_audio, auto), daemon=True).start()
-
-    def _play_audio(self, audio, auto=False):
-        """Internal method to play audio"""
         try:
-            sd.play(audio, self.sr)
-            sd.wait()
+            sd.play(segment_audio, self.sr)
         except Exception as e:
             print(f"Error playing audio: {e}")
-        finally:
             self.playing = False
-            # If auto-playing is enabled, continue to next segment
-            if self.auto_playing:
-                self.play_next_segment()
 
     def stop_playback(self):
         """Stop audio playback"""
@@ -260,15 +250,26 @@ class SpectrogramLabeler:
         self.auto_playing = True
         self.current_segment = 0
         self.play_segment('start', auto=True)
+        self.check_playback_status()
 
-    def play_next_segment(self):
-        """Play the next segment in the loop"""
-        if not self.auto_playing:
+    def check_playback_status(self):
+        """Check if audio is still playing and continue auto-play if needed"""
+        if not self.playing and not self.auto_playing:
             return
 
-        segments = ['start', 'middle', 'end']
-        self.current_segment = (self.current_segment + 1) % 3
-        self.play_segment(segments[self.current_segment], auto=True)
+        # Check if audio is still playing
+        if self.playing and sd.get_stream().active:
+            # Still playing, check again in 100ms
+            self.root.after(100, self.check_playback_status)
+        elif self.playing:
+            # Playback finished
+            self.playing = False
+            if self.auto_playing:
+                # Move to next segment
+                segments = ['start', 'middle', 'end']
+                self.current_segment = (self.current_segment + 1) % 3
+                self.play_segment(segments[self.current_segment], auto=True)
+                self.root.after(100, self.check_playback_status)
 
     def label_file(self, label):
         """Label the current file and move to next"""
