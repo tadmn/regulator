@@ -1,0 +1,23 @@
+[project]
+name = "regulator"
+version = "0.1.0"
+requires-python = "==3.13.11"
+dependencies = [
+    "keras",
+    "librosa",
+    "matplotlib",
+    "numpy",
+    "pillow",
+    "protobuf",
+    "pyparsing",
+    "pyyaml",
+    "requests",
+    "scikit-learn",
+    "scipy",
+    "six",
+    "sounddevice",
+    "tensorflow",
+    "werkzeug",
+    "wheel",
+    "wrapt",
+]
