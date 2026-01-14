@@ -104,20 +104,11 @@ class SpectrogramLabeler:
         ttk.Button(label_frame, text="CON (C)", command=lambda: self.label_file('con')).pack(side=tk.LEFT, padx=2)
         ttk.Button(label_frame, text="UNSURE (U)", command=lambda: self.label_file('unsure')).pack(side=tk.LEFT, padx=2)
 
-        # Navigation buttons
-        nav_frame = ttk.LabelFrame(control_frame, text="Navigation", padding="10")
-        nav_frame.pack(side=tk.LEFT)
-
-        ttk.Button(nav_frame, text="← Previous", command=self.prev_file).pack(side=tk.LEFT, padx=2)
-        ttk.Button(nav_frame, text="Next →", command=self.next_file).pack(side=tk.LEFT, padx=2)
-
         # Keyboard bindings
         self.root.bind('p', lambda e: self.label_file('pro'))
         self.root.bind('c', lambda e: self.label_file('con'))
         self.root.bind('u', lambda e: self.label_file('unsure'))
         self.root.bind('<space>', lambda e: self.stop_playback())
-        self.root.bind('<Left>', lambda e: self.prev_file())
-        self.root.bind('<Right>', lambda e: self.next_file())
 
     def load_current_file(self):
         """Load and display the current audio file"""
@@ -302,21 +293,6 @@ class SpectrogramLabeler:
         except Exception as e:
             self.show_error(f"Error moving file: {str(e)}")
 
-    def next_file(self):
-        """Navigate to next file"""
-        if not self.files:
-            return
-
-        self.current_index = (self.current_index + 1) % len(self.files)
-        self.load_current_file()
-
-    def prev_file(self):
-        """Navigate to previous file"""
-        if not self.files:
-            return
-
-        self.current_index = (self.current_index - 1) % len(self.files)
-        self.load_current_file()
 
     def show_error(self, message):
         """Show error message"""
@@ -346,7 +322,6 @@ def main():
     print("  C - Label as CON")
     print("  U - Label as UNSURE")
     print("  Space - Stop playback")
-    print("  ← → - Navigate")
 
     # Create and run GUI
     root = tk.Tk()
