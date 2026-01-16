@@ -19,18 +19,20 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 import sounddevice as sd
-import soundfile as sf
 from pathlib import Path
 import time
 
 # Get the directory where this script is located
 SCRIPT_DIR = Path(__file__).resolve().parent
 
+# Increase buffer size to reduce popping/crackling
+sd.default.blocksize = 1024
+
 
 class SpectrogramLabeler:
     def __init__(self, root):
         self.root = root
-        self.root.title("Audio Labeler with Spectrogram")
+        self.root.title("Audio Labeler")
         self.root.geometry("1200x800")
 
         # Directories - relative to script location
@@ -49,14 +51,18 @@ class SpectrogramLabeler:
         self.sr = None
         self.duration = 0
         self.playing = False
-        self.auto_playing = False
         self.current_segment = 0  # 0=start, 1=middle, 2=end
+
+        # Timing data for estimation
+        self.label_times = []
+        self.last_label_time = None
 
         # Setup UI
         self.setup_ui()
 
         # Load first file
         if self.files:
+            self.last_label_time = time.time()  # Start timing
             self.load_current_file()
         else:
             self.show_error("No WAV files found in audio-data/")
@@ -93,8 +99,8 @@ class SpectrogramLabeler:
         play_frame = ttk.LabelFrame(control_frame, text="Playback", padding="10")
         play_frame.pack(side=tk.LEFT, padx=(0, 10))
 
-        ttk.Button(play_frame, text="Play", command=self.start_auto_play).pack(side=tk.LEFT, padx=2)
-        ttk.Button(play_frame, text="Stop (Space)", command=self.stop_playback).pack(side=tk.LEFT, padx=2)
+        ttk.Button(play_frame, text="Play (Space)", command=self.start_play).pack(side=tk.LEFT, padx=2)
+        ttk.Button(play_frame, text="Stop", command=self.stop_playback).pack(side=tk.LEFT, padx=2)
 
         # Label buttons
         label_frame = ttk.LabelFrame(control_frame, text="Label", padding="10")
@@ -108,7 +114,7 @@ class SpectrogramLabeler:
         self.root.bind('p', lambda e: self.label_file('pro'))
         self.root.bind('c', lambda e: self.label_file('con'))
         self.root.bind('u', lambda e: self.label_file('unsure'))
-        self.root.bind('<space>', lambda e: self.stop_playback())
+        self.root.bind('<space>', lambda e: self.toggle_playback())
 
     def load_current_file(self):
         """Load and display the current audio file"""
@@ -122,11 +128,15 @@ class SpectrogramLabeler:
             self.audio, self.sr = librosa.load(str(filepath), sr=None)
             self.duration = len(self.audio) / self.sr
 
+            # Calculate time estimate
+            time_estimate = self.get_time_estimate()
+
             # Update info
-            self.info_label.config(
-                text=f"File {self.current_index + 1}/{len(self.files)}: {filepath.name}\n"
-                     f"Duration: {self.duration:.2f}s | Sample Rate: {self.sr}Hz"
-            )
+            info_text = f"{filepath.name}\n"
+            info_text += f"Duration: {self.duration:.2f}s | Sample Rate: {self.sr}Hz"
+            info_text += f"\nEst. time to label all remaining files: {time_estimate} ({len(self.files)} files)"
+
+            self.info_label.config(text=info_text)
 
             # Plot spectrogram
             self.plot_spectrogram()
@@ -150,7 +160,7 @@ class SpectrogramLabeler:
 
         # Highlight the current segment if playing
         if highlight_segment is not None:
-            segment_duration = 3.0
+            segment_duration = 1.5
 
             if highlight_segment == 'start':
                 start_time = 0
@@ -171,22 +181,17 @@ class SpectrogramLabeler:
 
         self.canvas.draw()
 
-    def play_segment(self, segment, auto=False):
+    def play_segment(self, segment):
         """Play a segment of the audio"""
         if self.audio is None:
             return
 
-        # If manually triggered (not auto), start auto-playing mode
-        if not auto:
-            self.auto_playing = True
-
         # Stop any currently playing audio
         if self.playing:
             self.stop_playback()
-            time.sleep(0.1)  # Brief pause to ensure playback stopped
 
         # Calculate segment boundaries
-        segment_duration = 3.0  # seconds
+        segment_duration = 1.5  # seconds
 
         if segment == 'start':
             start_sample = 0
@@ -219,7 +224,7 @@ class SpectrogramLabeler:
         # Update spectrogram to highlight current segment
         self.plot_spectrogram(highlight_segment=segment)
 
-        # Play audio on main thread
+        # Play audio
         self.playing = True
         try:
             sd.play(segment_audio, self.sr)
@@ -231,36 +236,62 @@ class SpectrogramLabeler:
         """Stop audio playback"""
         sd.stop()
         self.playing = False
-        self.auto_playing = False
         # Remove highlight from spectrogram
         if self.audio is not None:
             self.plot_spectrogram()
 
-    def start_auto_play(self):
-        """Start auto-playing segments in a loop"""
-        self.auto_playing = True
+    def toggle_playback(self):
+        """Toggle between play and stop"""
+        if self.playing:
+            self.stop_playback()
+        else:
+            self.start_play()
+
+    def start_play(self):
+        """Start playing segments in a loop"""
         self.current_segment = 0
-        self.play_segment('start', auto=True)
+        self.play_segment('start')
         self.check_playback_status()
 
     def check_playback_status(self):
-        """Check if audio is still playing and continue auto-play if needed"""
-        if not self.playing and not self.auto_playing:
+        """Check if audio is still playing and continue to next segment"""
+        if not self.playing:
             return
 
         # Check if audio is still playing
-        if self.playing and sd.get_stream().active:
-            # Still playing, check again in 100ms
-            self.root.after(100, self.check_playback_status)
-        elif self.playing:
-            # Playback finished
+        if sd.get_stream().active:
+            # Still playing, check again in 30ms
+            self.root.after(30, self.check_playback_status)
+        else:
+            # Playback finished - move to next segment
             self.playing = False
-            if self.auto_playing:
-                # Move to next segment
-                segments = ['start', 'middle', 'end']
-                self.current_segment = (self.current_segment + 1) % 3
-                self.play_segment(segments[self.current_segment], auto=True)
-                self.root.after(100, self.check_playback_status)
+            segments = ['start', 'middle', 'end']
+            self.current_segment = (self.current_segment + 1) % 3
+            self.play_segment(segments[self.current_segment])
+            self.root.after(30, self.check_playback_status)
+
+    def get_time_estimate(self):
+        """Calculate estimated time remaining based on labeling speed"""
+        if len(self.label_times) < 2:
+            return "..."
+
+        # Calculate average time per file from recent labels
+        avg_time = sum(self.label_times) / len(self.label_times)
+
+        # Estimate time for remaining files
+        remaining_seconds = avg_time * len(self.files)
+
+        # Format the time estimate
+        if remaining_seconds < 60:
+            return f"{int(remaining_seconds)}s"
+        elif remaining_seconds < 3600:
+            minutes = int(remaining_seconds / 60)
+            seconds = int(remaining_seconds % 60)
+            return f"{minutes}m {seconds}s"
+        else:
+            hours = int(remaining_seconds / 3600)
+            minutes = int((remaining_seconds % 3600) / 60)
+            return f"{hours}h {minutes}m"
 
     def label_file(self, label):
         """Label the current file and move to next"""
@@ -268,6 +299,23 @@ class SpectrogramLabeler:
             return
 
         filepath = self.files[self.current_index]
+
+        # Record time taken for this label
+        if self.last_label_time is not None:
+            time_taken = time.time() - self.last_label_time
+            self.label_times.append(time_taken)
+            # Keep only last 10 labels for rolling average
+            if len(self.label_times) > 10:
+                self.label_times.pop(0)
+
+        self.last_label_time = time.time()
+
+        # Remember if we were playing
+        was_playing = self.playing
+
+        # Stop any playing audio
+        if self.playing:
+            self.stop_playback()
 
         # Determine destination
         dest_dir = self.output_dir / label
@@ -287,6 +335,9 @@ class SpectrogramLabeler:
 
             if self.files:
                 self.load_current_file()
+                # If we were playing, start playing the new file from the beginning
+                if was_playing:
+                    self.start_play()
             else:
                 self.show_error("All files labeled!")
 
@@ -321,7 +372,7 @@ def main():
     print("  P - Label as PRO")
     print("  C - Label as CON")
     print("  U - Label as UNSURE")
-    print("  Space - Stop playback")
+    print("  Space - Play/Stop playback")
 
     # Create and run GUI
     root = tk.Tk()
