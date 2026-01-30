@@ -1,5 +1,6 @@
 ml/audio-data*
 ml/labeled-audio-data
+ml/models
 
 # Jetbrains
 .idea

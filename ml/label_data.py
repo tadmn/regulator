@@ -2,13 +2,6 @@
 """
 Interactive audio labeling tool with spectrogram visualization
 Plays 3 segments (start, middle, end) and allows visual + audio labeling
-
-Requirements:
-brew install tkinter
-pip3 install librosa matplotlib numpy sounddevice soundfile pillow
-
-Usage:
-python3 spectrogram_labeler.py
 """
 
 import tkinter as tk

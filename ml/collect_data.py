@@ -2,14 +2,6 @@
 """
 Step 1: Collect and segment Spotify audio
 Records system audio and automatically splits into segments
-
-Requirements:
-pip3 install sounddevice soundfile numpy scipy
-
-macOS Setup:
-1. Install BlackHole: brew install blackhole-2ch
-2. Restart computer
-4. Set "BlackHole 2ch" as output in Systems Settings > Sound
 """
 
 import sounddevice as sd
