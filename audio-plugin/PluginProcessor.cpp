@@ -89,6 +89,14 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
     juce::ignoreUnused (sampleRate, samplesPerBlock);
+
+    mSpectralCentroid.store(0.0, std::memory_order_relaxed);
+
+    mWindow = tb::window<float>(tb::WindowType::Hamming, kFftSize);
+    mFifoBuffer = std::make_unique<tb::FifoBuffer<float>>(kNumChannels, kFftSize);
+    mFftInBuffer.resize({ .numChannels = kNumChannels, .numFrames = static_cast<uint32_t>(kFftSize) });
+    mFft = std::make_unique<FastFourier>(kFftSize);
+    mHistoryBuff = {};
 }
 
 void AudioPluginAudioProcessor::releaseResources()
@@ -139,17 +147,53 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
-        juce::ignoreUnused (channelData);
-        // ..do something to the data...
+    auto audio = choc::buffer::createChannelArrayView(buffer.getArrayOfWritePointers(), buffer.getNumChannels(),
+                                                      buffer.getNumSamples());
+
+    while (audio.getNumFrames() > 0) {
+        audio = mFifoBuffer->push(audio);
+        if (mFifoBuffer->isFull()) {
+            // Make a copy of the accumulated samples, so that when we window them we don't affect
+            // the overlapping samples in the next chunk
+            copy(mFftInBuffer, mFifoBuffer->getBuffer());
+
+            // Apply windowing
+            applyGainPerFrame(mFftInBuffer, [this](auto i) { return mWindow[i]; });
+
+            mFft->forward(mFftInBuffer.getIterator(0).sample, mFftOut.data());
+
+            // Calculate frequency resolution (Hz per bin)
+            const double freqResolution = getSampleRate() / (2.0 * (mFftOut.size() - 1));
+
+            double weightedSum = 0.0;
+            double magnitudeSum = 0.0;
+
+            // Calculate weighted sum and total magnitude
+            for (size_t i = 0; i < mFftOut.size(); ++i) {
+                double frequency = i * freqResolution;
+                double magnitude = std::abs(mFftOut[i]);
+
+                weightedSum += frequency * magnitude;
+                magnitudeSum += magnitude;
+            }
+
+            double spectralCentroid = 0.0;
+            if (magnitudeSum != 0.0) // Avoid division by zero
+                spectralCentroid = weightedSum / magnitudeSum;
+
+            mHistoryBuff[mHistoryBuffWrite] = spectralCentroid;
+
+            ++mHistoryBuffWrite;
+            if (mHistoryBuffWrite >= mHistoryBuff.size())
+                mHistoryBuffWrite = 0;
+
+            const double averagedCentroid = std::accumulate(mHistoryBuff.begin(), mHistoryBuff.end(), 0.0) /
+                                            mHistoryBuff.size();
+
+            mSpectralCentroid.store(averagedCentroid, std::memory_order_relaxed);
+
+            mFifoBuffer->pop(kHopSize);
+        }
     }
 }
 

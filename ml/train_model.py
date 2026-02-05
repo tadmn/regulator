@@ -56,33 +56,23 @@ class RegulatorTrainer:
             # Pad if too short
             if len(y) < self.sample_rate * self.duration:
                 y = np.pad(y, (0, int(self.sample_rate * self.duration) - len(y)))
-            
-            # Extract MFCCs
-            mfcc = librosa.feature.mfcc(
-                y=y, 
-                sr=sr,
-                n_mfcc=self.n_mfcc,
-                n_fft=self.n_fft,
-                hop_length=self.hop_length
-            )
-            
-            # Extract spectral centroid
-            centroid = librosa.feature.spectral_centroid(
+
+            mspec = librosa.feature.melspectrogram(
                 y=y,
                 sr=sr,
                 n_fft=self.n_fft,
                 hop_length=self.hop_length
             )
             
-            # Extract zero-crossing rate
-            zcr = librosa.feature.zero_crossing_rate(
-                y,
-                frame_length=self.n_fft,
+            centroid = librosa.feature.spectral_centroid(
+                y=y,
+                sr=sr,
+                n_fft=self.n_fft,
                 hop_length=self.hop_length
             )
-            
+
             # Combine features
-            features = np.vstack([mfcc, centroid, zcr])  # Shape: (42, n_frames)
+            features = np.vstack([mspec, centroid])
             
             # Ensure consistent length
             if features.shape[1] < self.expected_frames:
