@@ -20,11 +20,8 @@ juce_add_plugin(Regulator
   PRODUCT_NAME "Regulator"
   COPY_PLUGIN_AFTER_BUILD TRUE)
 
-target_sources(Regulator PRIVATE
-  PluginProcessor.cpp
-  PluginProcessor.h
-  PluginEditor.cpp
-  PluginEditor.h)
+file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
+target_sources(Regulator PRIVATE ${SOURCE_FILES})
 
 target_link_libraries(Regulator PUBLIC tad-bits choc FastFourier)
 target_compile_definitions(Regulator PUBLIC JUCE_VST3_CAN_REPLACE_VST2=0)
