@@ -16,8 +16,8 @@ public:
     Regulator() :
         mWindow(tb::window<float>(tb::WindowType::Hamming, kFftSize)),
         mFifoBuffer(kNumChannels, kFftSize),
-        mFft(kFftSize),
-        mFftInBuffer({ .numChannels = kNumChannels, .numFrames = static_cast<uint32_t>(kFftSize) }) {
+        mFftInBuffer({ .numChannels = kNumChannels, .numFrames = kFftSize }),
+        mFft(kFftSize) {
         settle();
     }
 

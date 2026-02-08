@@ -4,6 +4,8 @@ include(cmake/CPM.cmake)
 
 project(Regulator VERSION 1.0.0)
 
+option(USE_SANITIZER "Build and link with the address sanitizer" OFF)
+
 CPMAddPackage("gh:tadmn/tad-bits#500124abce002a69664b3324fba8bff24556f1c4")
 include(${tad-bits_SOURCE_DIR}/cmake/compile-options.cmake)
 
@@ -25,3 +27,4 @@ target_sources(Regulator PRIVATE ${SOURCE_FILES})
 
 target_link_libraries(Regulator PUBLIC tad-bits choc FastFourier)
 target_compile_definitions(Regulator PUBLIC JUCE_VST3_CAN_REPLACE_VST2=0)
+add_compiler_warnings(Regulator)
