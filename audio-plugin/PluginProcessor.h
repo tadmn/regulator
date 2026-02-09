@@ -49,7 +49,7 @@ public:
 private:
     Regulator mRegulator;
 
-    std::array<double, 130> mHistoryBuff;
+    std::array<double, 200> mHistoryBuff;
     int mHistoryBuffWrite = 0;
 
     //==============================================================================

@@ -7,12 +7,9 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
 {
     addAndMakeVisible(mLabel);
     mLabel.setJustificationType(juce::Justification::centred);
+    mLabel.setFont({juce::FontOptions(25.f)});
 
-    juce::ignoreUnused (processorRef);
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
     setSize (400, 300);
-
     startTimer(30);
 }
 
@@ -34,5 +31,6 @@ void AudioPluginAudioProcessorEditor::resized()
 
 void AudioPluginAudioProcessorEditor::timerCallback()
 {
-    mLabel.setText(juce::String(processorRef.mSpectralCentroid, 1), juce::dontSendNotification);
+    mLabel.setText(juce::String(juce::roundToInt(processorRef.mSpectralCentroid.load(std::memory_order_relaxed))),
+                   juce::dontSendNotification);
 }
