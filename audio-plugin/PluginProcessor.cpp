@@ -16,8 +16,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 
 //==============================================================================
-void AudioPluginAudioProcessor::prepareToPlay (double /*sampleRate*/, int /*samplesPerBlock*/)
-{
+void AudioPluginAudioProcessor::prepareToPlay (double /*sampleRate*/, int /*samplesPerBlock*/) {
     mRegulator.settle();
     mHistoryBuff = {};
     mSpectralCentroid.store(0.0, std::memory_order_relaxed);
@@ -47,24 +46,25 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
   #endif
 }
 
-void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
-                                              juce::MidiBuffer& /*midiMessages*/) {
+void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+                                             juce::MidiBuffer& /*midiMessages*/) {
     juce::ScopedNoDenormals noDenormals;
 
-    auto audio = choc::buffer::createChannelArrayView(buffer.getArrayOfWritePointers(), buffer.getNumChannels(),
-                                                      buffer.getNumSamples());
+    auto audio = choc::buffer::createChannelArrayView(buffer.getArrayOfWritePointers(),
+                                                      buffer.getNumChannels(), buffer.getNumSamples());
 
-    mRegulator.process(audio);
-    mHistoryBuff[mHistoryBuffWrite] = mRegulator.spectralCentroid();
+    mRegulator.process(audio, [this](const Regulator::Features& features) {
+        mHistoryBuff[mHistoryBuffWrite] = features.spectralCentroid;
 
-    ++mHistoryBuffWrite;
-    if (mHistoryBuffWrite >= mHistoryBuff.size())
-        mHistoryBuffWrite = 0;
+        ++mHistoryBuffWrite;
+        if (mHistoryBuffWrite >= mHistoryBuff.size())
+            mHistoryBuffWrite = 0;
 
-    const double averagedCentroid = std::accumulate(mHistoryBuff.begin(), mHistoryBuff.end(), 0.0) /
-                                    mHistoryBuff.size();
+        const double averagedCentroid = std::accumulate(mHistoryBuff.begin(), mHistoryBuff.end(), 0.0) /
+                                        mHistoryBuff.size();
 
-    mSpectralCentroid.store(averagedCentroid, std::memory_order_relaxed);
+        mSpectralCentroid.store(averagedCentroid, std::memory_order_relaxed);
+    });
 }
 
 //==============================================================================
