@@ -5,9 +5,13 @@
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
 {
-    addAndMakeVisible(mLabel);
-    mLabel.setJustificationType(juce::Justification::centred);
-    mLabel.setFont({juce::FontOptions(25.f)});
+    addAndMakeVisible(mCentroidLabel);
+    mCentroidLabel.setJustificationType(juce::Justification::centred);
+    mCentroidLabel.setFont({juce::FontOptions(25.f)});
+
+    addAndMakeVisible(mProcessingTimeLabel);
+    mProcessingTimeLabel.setJustificationType(juce::Justification::centred);
+    mProcessingTimeLabel.setFont({juce::FontOptions(25.f)});
 
     setSize (400, 300);
     startTimer(30);
@@ -26,11 +30,17 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
 
 void AudioPluginAudioProcessorEditor::resized()
 {
-    mLabel.setBounds(getLocalBounds());
+    auto b = getLocalBounds();
+    mCentroidLabel.setBounds(b.removeFromBottom(getHeight() / 2));
+    mProcessingTimeLabel.setBounds(b);
 }
 
 void AudioPluginAudioProcessorEditor::timerCallback()
 {
-    mLabel.setText(juce::String(juce::roundToInt(processorRef.mSpectralCentroid.load(std::memory_order_relaxed))),
+    mCentroidLabel.setText(juce::String(juce::roundToInt(processorRef.mSpectralCentroid.load(std::memory_order_relaxed))),
                    juce::dontSendNotification);
+
+    mProcessingTimeLabel.setText(juce::String(processorRef.mProcessingTime_ms
+                                                                   .load(std::memory_order_relaxed), 2),
+                                 juce::dontSendNotification);
 }

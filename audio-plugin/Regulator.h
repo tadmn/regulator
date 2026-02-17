@@ -23,7 +23,7 @@ public:
     };
 
     Regulator() :
-        mResampler(kNumChannels, tb::SampleRateConverter::Quality::BestQuality),
+        mResampler(kNumChannels, tb::SampleRateConverter::Quality::MediumQuality),
         mResampledBuffer(kNumChannels, kFftSize),
         mWindow(tb::window<float>(tb::WindowType::Hamming, kFftSize)),
         mFifoBuffer(kNumChannels, kFftSize),

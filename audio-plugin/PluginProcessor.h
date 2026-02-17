@@ -44,7 +44,8 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    std::atomic<double> mSpectralCentroid = 0.0;
+    std::atomic<float> mSpectralCentroid = 0.f;
+    std::atomic<float> mProcessingTime_ms = 0.f;
 
 private:
     Regulator mRegulator;

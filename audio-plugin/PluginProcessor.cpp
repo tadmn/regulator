@@ -19,7 +19,8 @@ AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 void AudioPluginAudioProcessor::prepareToPlay (double /*sampleRate*/, int /*samplesPerBlock*/) {
     mRegulator.settle();
     mHistoryBuff = {};
-    mSpectralCentroid.store(0.0, std::memory_order_relaxed);
+    mSpectralCentroid.store(0.f, std::memory_order_relaxed);
+    mProcessingTime_ms.store(0.f, std::memory_order_relaxed);
 }
 
 void AudioPluginAudioProcessor::releaseResources() {}
@@ -48,6 +49,8 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 
 void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                              juce::MidiBuffer& /*midiMessages*/) {
+    const auto beginTime = std::chrono::high_resolution_clock::now();
+
     juce::ScopedNoDenormals noDenormals;
 
     auto audio = choc::buffer::createChannelArrayView(buffer.getArrayOfWritePointers(),
@@ -65,6 +68,12 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
         mSpectralCentroid.store(averagedCentroid, std::memory_order_relaxed);
     });
+
+    mProcessingTime_ms.store(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() -
+                                                                                   beginTime)
+                                     .count() /
+                                 1'000.0,
+                             std::memory_order_relaxed);
 }
 
 //==============================================================================
