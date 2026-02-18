@@ -21,7 +21,7 @@ class RegulatorTrainer:
         
         # Feature extraction settings
         self.sample_rate = 22050
-        self.duration = 3.0  # Use 3 second clips
+        self.duration = 3.0
         self.n_mfcc = 40
         self.n_fft = 2048
         self.hop_length = 512
@@ -46,45 +46,75 @@ class RegulatorTrainer:
             labels_dict[file] = 'con'
         
         return labels_dict
-    
+
     def extract_features(self, audio_file):
         """Extract features from audio file"""
         try:
-            # Load audio (take first 3 seconds)
-            y, sr = librosa.load(audio_file, sr=self.sample_rate, duration=self.duration)
-            
-            # Pad if too short
-            if len(y) < self.sample_rate * self.duration:
-                y = np.pad(y, (0, int(self.sample_rate * self.duration) - len(y)))
+            # Load entire audio file
+            y, sr = librosa.load(audio_file, sr=self.sample_rate)
 
-            mspec = librosa.feature.melspectrogram(
-                y=y,
-                sr=sr,
-                n_fft=self.n_fft,
-                hop_length=self.hop_length
-            )
-            
-            centroid = librosa.feature.spectral_centroid(
-                y=y,
-                sr=sr,
-                n_fft=self.n_fft,
-                hop_length=self.hop_length
-            )
+            # Calculate number of clips we can extract
+            clip_samples = int(self.sample_rate * self.duration)
+            hop_samples = int(self.hop_length)
 
-            # Combine features
-            features = np.vstack([mspec, centroid])
-            
-            # Ensure consistent length
-            if features.shape[1] < self.expected_frames:
-                # Pad
-                pad_width = self.expected_frames - features.shape[1]
-                features = np.pad(features, ((0, 0), (0, pad_width)), mode='constant')
-            elif features.shape[1] > self.expected_frames:
-                # Truncate
-                features = features[:, :self.expected_frames]
-            
-            return features.T  # Shape: (n_frames, 42)
-        
+            # Extract features from overlapping clips
+            all_features = []
+
+            for start_sample in range(0, len(y) - clip_samples + 1, hop_samples):
+                # Extract 3-second clip
+                clip = y[start_sample:start_sample + clip_samples]
+
+                # Pad if somehow short (edge case)
+                if len(clip) < clip_samples:
+                    clip = np.pad(clip, (0, clip_samples - len(clip)))
+
+                centroid = librosa.feature.spectral_centroid(
+                    y=clip,
+                    sr=sr,
+                    n_fft=self.n_fft,
+                    hop_length=self.hop_length
+                )
+
+                # Combine features
+                features = np.vstack([centroid])
+
+                # Ensure consistent length
+                if features.shape[1] < self.expected_frames:
+                    # Pad
+                    pad_width = self.expected_frames - features.shape[1]
+                    features = np.pad(features, ((0, 0), (0, pad_width)), mode='constant')
+                elif features.shape[1] > self.expected_frames:
+                    # Truncate
+                    features = features[:, :self.expected_frames]
+
+                all_features.append(features.T)  # Shape: (n_frames, 1)
+
+            # If audio is too short for even one clip, extract from what we have
+            if len(all_features) == 0:
+                clip = y
+                if len(clip) < clip_samples:
+                    clip = np.pad(clip, (0, clip_samples - len(clip)))
+
+                centroid = librosa.feature.spectral_centroid(
+                    y=clip,
+                    sr=sr,
+                    n_fft=self.n_fft,
+                    hop_length=self.hop_length
+                )
+
+                features = np.vstack([centroid])
+
+                if features.shape[1] < self.expected_frames:
+                    pad_width = self.expected_frames - features.shape[1]
+                    features = np.pad(features, ((0, 0), (0, pad_width)), mode='constant')
+                elif features.shape[1] > self.expected_frames:
+                    features = features[:, :self.expected_frames]
+
+                all_features.append(features.T)
+
+            # Stack all clips - return shape: (n_clips, n_frames, 1)
+            return np.array(all_features)
+
         except Exception as e:
             print(f"Error extracting features from {audio_file}: {e}")
             return None
@@ -114,9 +144,11 @@ class RegulatorTrainer:
             
             features = self.extract_features(filename)
             if features is not None:
-                X.append(features)
-                y.append(0 if label == 'pro' else 1)  # 0=pro, 1=con
-                filenames.append(filename)
+                label_val = 0 if label == 'pro' else 1
+                # Each file can produce multiple clips, so we extend the lists
+                X.extend(features)
+                y.extend([label_val] * len(features))
+                filenames.extend([filename] * len(features))
         
         print(f"\n\nSuccessfully processed {len(X)} files")
         

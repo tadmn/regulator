@@ -17,7 +17,7 @@ AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay (double /*sampleRate*/, int /*samplesPerBlock*/) {
-    mRegulator.settle();
+    mFeatureExtractor.settle();
     mHistoryBuff = {};
     mSpectralCentroid.store(0.f, std::memory_order_relaxed);
     mProcessingTime_ms.store(0.f, std::memory_order_relaxed);
@@ -56,7 +56,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     auto audio = choc::buffer::createChannelArrayView(buffer.getArrayOfWritePointers(),
                                                       buffer.getNumChannels(), buffer.getNumSamples());
 
-    mRegulator.process(audio, [this](const Regulator::Features& features) {
+    mFeatureExtractor.process(audio, [this](const FeatureExtractor::Features& features) {
         mHistoryBuff[mHistoryBuffWrite] = features.spectralCentroid;
 
         ++mHistoryBuffWrite;

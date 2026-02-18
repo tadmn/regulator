@@ -7,7 +7,7 @@
 #include <FastFourier.h>
 #include <choc_SampleBuffers.h>
 
-class Regulator {
+class FeatureExtractor {
 public:
     static constexpr int kMaxInBufferFrames = 1024;
     static constexpr double kInSampleRate = 44100.0;
@@ -22,7 +22,7 @@ public:
         float spectralCentroid = 0.f;
     };
 
-    Regulator() :
+    FeatureExtractor() :
         mResampler(kNumChannels, tb::SampleRateConverter::Quality::MediumQuality),
         mResampledBuffer(kNumChannels, kFftSize),
         mWindow(tb::window<float>(tb::WindowType::Hamming, kFftSize)),
@@ -32,7 +32,7 @@ public:
         settle();
     }
 
-    ~Regulator() {}
+    ~FeatureExtractor() {}
 
     void settle() {
         mResampler.reset();

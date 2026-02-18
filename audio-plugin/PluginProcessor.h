@@ -2,7 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#include "Regulator.h"
+#include "FeatureExtractor.h"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -48,9 +48,8 @@ public:
     std::atomic<float> mProcessingTime_ms = 0.f;
 
 private:
-    Regulator mRegulator;
-
-    std::array<double, 200> mHistoryBuff;
+    FeatureExtractor mFeatureExtractor;
+    std::array<double, 100> mHistoryBuff;
     int mHistoryBuffWrite = 0;
 
     //==============================================================================
