@@ -56,7 +56,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     auto audio = choc::buffer::createChannelArrayView(buffer.getArrayOfWritePointers(),
                                                       buffer.getNumChannels(), buffer.getNumSamples());
 
-    mFeatureExtractor.process(audio, [this](const FeatureExtractor::Features& features) {
+    mFeatureExtractor.process(audio, getSampleRate(), 22050, [this](const FeatureExtractor::FeatureSet& features) {
         mHistoryBuff[mHistoryBuffWrite] = features.spectralCentroid;
 
         ++mHistoryBuffWrite;
