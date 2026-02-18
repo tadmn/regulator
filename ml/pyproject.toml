@@ -1,7 +1,7 @@
 [project]
 name = "regulator"
 version = "0.1.0"
-requires-python = "==3.13.11"
+requires-python = "==3.12.12"
 dependencies = [
     "keras",
     "librosa",
@@ -16,7 +16,8 @@ dependencies = [
     "scipy",
     "six",
     "sounddevice",
-    "tensorflow",
+    "tensorflow-macos",
+    "tensorflow-metal",
     "werkzeug",
     "wheel",
     "wrapt",

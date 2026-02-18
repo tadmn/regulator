@@ -14,6 +14,16 @@ import tensorflow as tf
 from tensorflow import keras
 from datetime import datetime
 
+print("TF version:", tf.__version__)
+print("GPU devices:", tf.config.list_physical_devices('GPU'))
+
+# Will throw an error if GPU is not enabled
+with tf.device('/GPU:0'):
+    a = tf.constant([[1.0, 2.0], [3.0, 4.0]])
+    b = tf.constant([[5.0, 6.0], [7.0, 8.0]])
+    c = tf.matmul(a, b)
+    print("Result:", c)
+
 class RegulatorTrainer:
     def __init__(self, output_dir='models'):
         self.output_dir = Path(output_dir)
