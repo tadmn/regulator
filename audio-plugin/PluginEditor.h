@@ -3,7 +3,8 @@
 #include "PluginProcessor.h"
 
 //==============================================================================
-class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor, public juce::Timer, public juce::FileDragAndDropTarget
+class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor, public juce::Timer,
+                                              public juce::FileDragAndDropTarget
 {
 public:
     explicit AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor&);
@@ -15,7 +16,7 @@ public:
 
     void timerCallback() override;
 
-    bool isInterestedInFileDrag(const juce::StringArray& /*files*/) override { return true;}
+    bool isInterestedInFileDrag(const juce::StringArray& /*files*/) override { return true; }
     void filesDropped(const juce::StringArray& files, int x, int y) override;
     void fileDragEnter (const juce::StringArray&, int, int) override {}
 
