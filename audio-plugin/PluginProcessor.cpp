@@ -16,11 +16,15 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 
 //==============================================================================
+void AudioPluginAudioProcessor::loadModel(const std::string& path) {
+    suspendProcessing(true);
+    modelFile = path;
+    modelProcessor.loadModel(path);
+    suspendProcessing(false);
+}
+
 void AudioPluginAudioProcessor::prepareToPlay (double /*sampleRate*/, int /*samplesPerBlock*/) {
-    mFeatureExtractor.settle();
-    mHistoryBuff = {};
-    mSpectralCentroid.store(0.f, std::memory_order_relaxed);
-    mProcessingTime_ms.store(0.f, std::memory_order_relaxed);
+    modelProcessor.prepare();
 }
 
 void AudioPluginAudioProcessor::releaseResources() {}
@@ -49,38 +53,24 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 
 void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                              juce::MidiBuffer& /*midiMessages*/) {
-    const auto beginTime = std::chrono::high_resolution_clock::now();
-
     juce::ScopedNoDenormals noDenormals;
 
     auto audio = choc::buffer::createChannelArrayView(buffer.getArrayOfWritePointers(),
-                                                      buffer.getNumChannels(), buffer.getNumSamples());
+                                                      buffer.getNumChannels(),
+                                                      buffer.getNumSamples());
 
-    mFeatureExtractor.process(audio, getSampleRate(), 22050, [this](const FeatureExtractor::FeatureSet& features) {
-        mHistoryBuff[mHistoryBuffWrite] = features.spectralCentroid;
-
-        ++mHistoryBuffWrite;
-        if (mHistoryBuffWrite >= mHistoryBuff.size())
-            mHistoryBuffWrite = 0;
-
-        const double averagedCentroid = std::accumulate(mHistoryBuff.begin(), mHistoryBuff.end(), 0.0) /
-                                        mHistoryBuff.size();
-
-        mSpectralCentroid.store(averagedCentroid, std::memory_order_relaxed);
-    });
-
-    mProcessingTime_ms.store(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() -
-                                                                                   beginTime)
-                                     .count() /
-                                 1'000.0,
-                             std::memory_order_relaxed);
+    modelProcessor.process(audio, getSampleRate());
 }
 
 //==============================================================================
-void AudioPluginAudioProcessor::getStateInformation (juce::MemoryBlock& /*destData*/) {
+void AudioPluginAudioProcessor::getStateInformation (juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream outputStream(destData, false);
+    outputStream << modelFile.getFullPathName();
 }
 
-void AudioPluginAudioProcessor::setStateInformation (const void* /*data*/, int /*sizeInBytes*/) {
+void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeInBytes) {
+    juce::MemoryInputStream inputStream(data, sizeInBytes, false);
+    loadModel(inputStream.readString().toStdString());
 }
 
 //==============================================================================

@@ -17,6 +17,8 @@ from datetime import datetime
 print("TF version:", tf.__version__)
 print("GPU devices:", tf.config.list_physical_devices('GPU'))
 
+default_num_epochs = 4
+
 # Will throw an error if GPU is not enabled
 with tf.device('/GPU:0'):
     a = tf.constant([[1.0, 2.0], [3.0, 4.0]])
@@ -29,12 +31,14 @@ class RegulatorTrainer:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         
-        # Feature extraction settings
+        # Feature set settings
         self.sample_rate = 22050
         self.duration = 3.0
         self.n_mfcc = 40
         self.n_fft = 2048
         self.hop_length = 512
+
+        self.feature_set_hop_length = int(self.duration * self.sample_rate)
         
         # Model will see this many time steps
         self.expected_frames = int((self.duration * self.sample_rate) / self.hop_length)
@@ -65,12 +69,11 @@ class RegulatorTrainer:
 
             # Calculate number of clips we can extract
             clip_samples = int(self.sample_rate * self.duration)
-            hop_samples = int(self.hop_length)
 
             # Extract features from overlapping clips
             all_features = []
 
-            for start_sample in range(0, len(y) - clip_samples + 1, hop_samples):
+            for start_sample in range(0, len(y) - clip_samples + 1, self.feature_set_hop_length):
                 # Extract 3-second clip
                 clip = y[start_sample:start_sample + clip_samples]
 
@@ -281,9 +284,9 @@ class RegulatorTrainer:
         
         # Plot training history
         self.plot_history(history)
-        
-        return model, history
-    
+
+        model.export(self.output_dir / 'saved_model')
+
     def plot_history(self, history):
         """Plot training history"""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
@@ -310,19 +313,14 @@ class RegulatorTrainer:
         plt.savefig(self.output_dir / 'training_history.png', dpi=150)
         print(f"\nTraining plot saved to: {self.output_dir / 'training_history.png'}")
     
-    def convert_to_tflite(self, model):
+    def convert_to_tflite(self):
         """Convert model to TensorFlow Lite"""
         print("\n" + "="*70)
         print("CONVERTING TO TFLITE")
         print("="*70)
         
-        # Convert to TFLite
-        converter = tf.lite.TFLiteConverter.from_keras_model(model)
-        
-        # Optimizations
-        converter.optimizations = [tf.lite.Optimize.DEFAULT]
-        
-        # Convert
+        converter = tf.lite.TFLiteConverter.from_saved_model(str(self.output_dir / 'saved_model'))
+        # converter.optimizations = [tf.lite.Optimize.DEFAULT]
         tflite_model = converter.convert()
         
         # Save
@@ -402,10 +400,10 @@ class RegulatorTrainer:
             print(f"Current: {len(X)} samples. Recommended: 500+")
         
         # Train
-        model, history = self.train(X, y, epochs=epochs)
+        self.train(X, y, epochs=epochs)
         
         # Convert to TFLite
-        tflite_path = self.convert_to_tflite(model)
+        self.convert_to_tflite()
         
         # Save config
         self.save_config()
@@ -419,8 +417,6 @@ class RegulatorTrainer:
         print(f"  - regulator.keras (Full Keras model)")
         print(f"  - config.json (Configuration)")
         print(f"  - training_history.png (Training plot)")
-        
-        return model, tflite_path
 
 
 def main():
@@ -437,8 +433,8 @@ def main():
     parser.add_argument(
         '--epochs',
         type=int,
-        default=50,
-        help='Number of training epochs (default: 50)'
+        default=default_num_epochs,
+        help=f'Number of training epochs (default: {default_num_epochs})'
     )
     
     args = parser.parse_args()

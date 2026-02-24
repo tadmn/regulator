@@ -2,7 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#include "FeatureExtractor.h"
+#include "ModelProcessor.h"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -44,13 +44,11 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    std::atomic<float> mSpectralCentroid = 0.f;
-    std::atomic<float> mProcessingTime_ms = 0.f;
+    ModelProcessor modelProcessor;
+    void loadModel(const std::string& path);
 
 private:
-    FeatureExtractor mFeatureExtractor;
-    std::array<double, 100> mHistoryBuff;
-    int mHistoryBuffWrite = 0;
+    juce::File modelFile;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

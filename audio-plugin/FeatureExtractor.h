@@ -3,6 +3,7 @@
 #include <tb_SampleRateConverter.h>
 #include <tb_FifoBuffer.h>
 #include <tb_Windowing.h>
+#include <tb_AudioFeatures.h>
 #include <FastFourier.h>
 #include <choc_SampleBuffers.h>
 
@@ -14,10 +15,6 @@ public:
     static constexpr int kNumChannels = 1;
     static constexpr auto kSrcQuality = tb::SampleRateConverter::Quality::MediumQuality;
 
-    struct FeatureSet {
-        float spectralCentroid = 0.f;
-    };
-
     FeatureExtractor() :
         mResampler(kNumChannels, kSrcQuality),
         mResampledBuffer(kNumChannels, kFftSize),
@@ -25,12 +22,12 @@ public:
         mFifoBuffer(kNumChannels, kFftSize),
         mFftInBuffer(kNumChannels, kFftSize),
         mFft(kFftSize) {
-        settle();
+        prepare();
     }
 
     ~FeatureExtractor() {}
 
-    void settle() {
+    void prepare() {
         mResampler.reset();
         mFifoBuffer.clear();
     }
@@ -38,7 +35,7 @@ public:
     void process(choc::buffer::ChannelArrayView<float> audioIn,
                  double inSampleRate,
                  double featuresSampleRate,
-                 const std::function<void(const FeatureSet&)>& applyFeatureSet) {
+                 const std::function<void(float f)>& applyFeatureSet) {
         tb_assert(audioIn.getNumChannels() == kNumChannels);
         tb_assert(audioIn.getNumFrames() <= kMaxInBufferFrames);
         tb_assert(applyFeatureSet);
@@ -47,7 +44,7 @@ public:
         while (audioIn.getNumFrames() > 0) {
             auto [remainingIn, resampled] =
                 mResampler.process(audioIn, mResampledBuffer, inSampleRate, featuresSampleRate);
-            
+
             audioIn = remainingIn;
 
             while (resampled.getNumFrames() > 0) {
@@ -60,32 +57,18 @@ public:
                     // Apply windowing
                     applyGainPerFrame(mFftInBuffer, [this](auto i) { return mWindow[i]; });
 
-                    mFft.forward(mFftInBuffer.getIterator(0).sample, mFftOut.data());
+                    std::array<std::complex<float>, kFftSize / 2 + 1> fftOut = {};
+                    mFft.forward(mFftInBuffer.getIterator(0).sample, fftOut.data());
 
-                    // Calculate frequency resolution (Hz per bin)
-                    const double freqResolution = featuresSampleRate / (2.0 * (mFftOut.size() - 1));
-
-                    double weightedSum = 0.0;
-                    double magnitudeSum = 0.0;
-
-                    // Calculate weighted sum and total magnitude
-                    for (size_t i = 0; i < mFftOut.size(); ++i) {
-                        double frequency = i * freqResolution;
-                        double magnitude = std::abs(mFftOut[i]);
-
-                        weightedSum += frequency * magnitude;
-                        magnitudeSum += magnitude;
+                    std::array<float, kFftSize / 2 + 1> fftPowerMag = {};
+                    for (size_t i = 0; i < fftOut.size(); ++i) {
+                        const auto mag = std::abs(fftOut[i]);
+                        fftPowerMag[i] = mag * mag;
                     }
 
-                    double spectralCentroid = 0.0;
-                    if (magnitudeSum != 0.0) // Avoid division by zero
-                        spectralCentroid = weightedSum / magnitudeSum;
+                    const float centroid = tb::spectralCentroid(fftPowerMag, featuresSampleRate);
 
-                    FeatureSet features {
-                        .spectralCentroid = static_cast<float>(spectralCentroid)
-                    };
-
-                    applyFeatureSet(features);
+                    applyFeatureSet(centroid);
 
                     // Shift samples in FFT buffer
                     mFifoBuffer.pop(kHopSize);
@@ -101,5 +84,4 @@ private:
     tb::FifoBuffer<float> mFifoBuffer;
     choc::buffer::ChannelArrayBuffer<float> mFftInBuffer;
     FastFourier mFft;
-    std::array<std::complex<float>, kFftSize> mFftOut;
 };
