@@ -15,9 +15,9 @@ public:
     ModelProcessor() : featuresFifo(129) {}
     ~ModelProcessor() {}
 
-    void loadModel(const std::string& modelPath) {
-        model.loadModel(modelPath);
+    tb::Result loadModel(const std::string& modelPath) {
         prepare();
+        return { model.loadModel(modelPath) };
     }
 
     void prepare() {
@@ -28,19 +28,25 @@ public:
     }
 
     void process(choc::buffer::ChannelArrayView<float> audioIn, double inSampleRate) {
+        if (! model.modelLoaded()) {
+            return;
+        }
+
         featureExtractor.process(audioIn, inSampleRate, modelSampleRate,
              [this](float f) {
                  featuresFifo.push_front(f);
                  if (featuresFifo.full()) {
                      featuresFifo.linearize();
-                     std::span<float> in(
-                         featuresFifo.array_one().first,
-                         featuresFifo.size());
+
+                     std::span in(featuresFifo.array_one().first,featuresFifo.size());
                      std::array<float, 2> out = {};
-                     if (model.process(in, out)) {
-                         avgCentroid = std::reduce(in.begin(), in.end()) / in.size();
-                         prediction = out[0];
+
+                     if (auto r = model.process(in, out); ! r.empty()) {
+                         throw std::runtime_error(r);
                      }
+
+                     avgCentroid = std::reduce(in.begin(), in.end()) / in.size();
+                     prediction = out[0];
                  }
              });
     }

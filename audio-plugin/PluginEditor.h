@@ -21,7 +21,7 @@ public:
     void fileDragEnter (const juce::StringArray&, int, int) override {}
 
 private:
-    juce::Label centroidLabel, predictionLabel;
+    juce::Label centroidLabel, predictionLabel, modelFileLabel;
 
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.

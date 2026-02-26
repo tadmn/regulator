@@ -1,6 +1,18 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+struct ScopedSuspendProcessing {
+    explicit ScopedSuspendProcessing(AudioPluginAudioProcessor& p) : processor(p) {
+        processor.suspendProcessing(true);
+    }
+
+    ~ScopedSuspendProcessing() {
+        processor.suspendProcessing(false);
+    }
+
+    AudioPluginAudioProcessor& processor;
+};
+
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
      : AudioProcessor (BusesProperties()
@@ -16,11 +28,16 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 
 //==============================================================================
-void AudioPluginAudioProcessor::loadModel(const std::string& path) {
-    suspendProcessing(true);
+tb::Result AudioPluginAudioProcessor::loadModel(const std::string& path) {
+    ScopedSuspendProcessing ssp(*this);
+    modelFile = "";
+
+    if (auto result = modelProcessor.loadModel(path); ! result) {
+        return result;
+    }
+
     modelFile = path;
-    modelProcessor.loadModel(path);
-    suspendProcessing(false);
+    return {};
 }
 
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/) {

@@ -45,7 +45,9 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     ModelProcessor modelProcessor;
-    void loadModel(const std::string& path);
+    tb::Result loadModel(const std::string& path);
+
+    const juce::File& getModelFile() const { return modelFile; }
 
 private:
     juce::File modelFile;

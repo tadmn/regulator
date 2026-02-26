@@ -17,7 +17,7 @@ from datetime import datetime
 print("TF version:", tf.__version__)
 print("GPU devices:", tf.config.list_physical_devices('GPU'))
 
-default_num_epochs = 50
+default_num_epochs = 25
 
 # Will throw an error if GPU is not enabled
 with tf.device('/GPU:0'):
@@ -38,7 +38,7 @@ class RegulatorTrainer:
         self.n_fft = 2048
         self.hop_length = 512
 
-        self.feature_set_hop_length = int(self.sample_rate / 25)
+        self.feature_set_hop_length = int(self.sample_rate / 8)
         
         # Model will see this many time steps
         self.expected_frames = int((self.duration * self.sample_rate) / self.hop_length)
