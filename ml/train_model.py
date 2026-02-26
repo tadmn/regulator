@@ -17,7 +17,7 @@ from datetime import datetime
 print("TF version:", tf.__version__)
 print("GPU devices:", tf.config.list_physical_devices('GPU'))
 
-default_num_epochs = 25
+default_num_epochs = 50
 
 # Will throw an error if GPU is not enabled
 with tf.device('/GPU:0'):
@@ -34,11 +34,10 @@ class RegulatorTrainer:
         # Feature set settings
         self.sample_rate = 22050
         self.duration = 3.0
-        self.n_mfcc = 40
         self.n_fft = 2048
         self.hop_length = 512
 
-        self.feature_set_hop_length = int(self.sample_rate / 8)
+        self.feature_set_hop_length_ms = 100
         
         # Model will see this many time steps
         self.expected_frames = int((self.duration * self.sample_rate) / self.hop_length)
@@ -46,7 +45,6 @@ class RegulatorTrainer:
         print("Trainer initialized:")
         print(f"  Sample rate: {self.sample_rate} Hz")
         print(f"  Duration: {self.duration}s")
-        print(f"  MFCC coefficients: {self.n_mfcc}")
         print(f"  Expected frames: {self.expected_frames}")
     
     def load_labels(self):
@@ -73,7 +71,9 @@ class RegulatorTrainer:
             # Extract features from overlapping clips
             all_features = []
 
-            for start_sample in range(0, len(y) - clip_samples + 1, self.feature_set_hop_length):
+            hop_length = int(self.feature_set_hop_length_ms / 1000.0 * self.sample_rate)
+
+            for start_sample in range(0, len(y) - clip_samples + 1, hop_length):
                 # Extract 3-second clip
                 clip = y[start_sample:start_sample + clip_samples]
 
@@ -373,7 +373,6 @@ class RegulatorTrainer:
         config = {
             'sample_rate': self.sample_rate,
             'duration': self.duration,
-            'n_mfcc': self.n_mfcc,
             'n_fft': self.n_fft,
             'hop_length': self.hop_length,
             'expected_frames': self.expected_frames,
