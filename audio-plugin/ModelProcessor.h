@@ -24,7 +24,7 @@ public:
         featureExtractor.prepare();
         featuresFifo.clear();
         avgCentroid = 0.f;
-        prediction = -1.f;
+        prediction = 1.f;
     }
 
     void process(choc::buffer::ChannelArrayView<float> audioIn, double inSampleRate) {
@@ -46,7 +46,7 @@ public:
     }
 
     std::atomic<float> avgCentroid = 0.f;
-    std::atomic<float> prediction = -1.f;
+    std::atomic<float> prediction = 1.f;
 
 private:
     FeatureExtractor featureExtractor;

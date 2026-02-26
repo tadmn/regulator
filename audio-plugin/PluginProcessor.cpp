@@ -23,8 +23,10 @@ void AudioPluginAudioProcessor::loadModel(const std::string& path) {
     suspendProcessing(false);
 }
 
-void AudioPluginAudioProcessor::prepareToPlay (double /*sampleRate*/, int /*samplesPerBlock*/) {
+void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/) {
     modelProcessor.prepare();
+    gain.reset(sampleRate, 0.01);
+    gain.setCurrentAndTargetValue(1.f);
 }
 
 void AudioPluginAudioProcessor::releaseResources() {}
@@ -60,6 +62,18 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                                       buffer.getNumSamples());
 
     modelProcessor.process(audio, getSampleRate());
+
+    {
+        auto g = std::clamp(modelProcessor.prediction.load(std::memory_order_relaxed), 0.f, 1.f);
+        if (g > 0.7f) {
+            g = 1.f;
+        } else if (g < 0.3f) {
+            g = 0.f;
+        }
+
+        gain.setTargetValue(g);
+        gain.applyGain(buffer, buffer.getNumSamples());
+    }
 }
 
 //==============================================================================
