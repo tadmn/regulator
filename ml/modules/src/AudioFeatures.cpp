@@ -103,11 +103,7 @@ class ProgressReporter {
 public:
     explicit ProgressReporter(std::size_t total)
         : total_(total)
-        , startTime_(std::chrono::steady_clock::now())
-    {
-        std::cout << "Extracting features from " << total_ << " file"
-                  << (total_ == 1 ? "" : "s") << "...\n";
-    }
+        , startTime_(std::chrono::steady_clock::now()) {}
 
     // Call after each file finishes. Thread-safe.
     void fileCompleted(std::size_t clipsProduced) {
