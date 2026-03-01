@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
 
-include(cmake/CPM.cmake)
+include(../cmake/CPM.cmake)
 
 project(Regulator VERSION 1.0.0)
 
 option(USE_SANITIZER "Build and link with the address sanitizer" OFF)
 
-CPMAddPackage("gh:tadmn/tad-bits#fd6282e5d9120a6aa5e363c7bd9cf4e513deddb4")
+CPMAddPackage("gh:tadmn/tad-bits#3e79ba0eee59fccf7c74ea7b48de056313f86e0b")
 include(${tad-bits_SOURCE_DIR}/cmake/compile-options.cmake)
 
 CPMAddPackage("gh:tadmn/choc#2f5b8627708ff4702b4fb6646fddf0c5f4a52007")

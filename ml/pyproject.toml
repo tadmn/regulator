@@ -1,6 +1,6 @@
 [project]
 name = "regulator"
-version = "0.1.0"
+version = "1.0.0"
 requires-python = "==3.12.12"
 dependencies = [
     "keras",
@@ -12,13 +12,14 @@ dependencies = [
     "pyparsing",
     "pyyaml",
     "requests",
-    "scikit-learn",
-    "scipy",
-    "six",
+    "pybind11",
+    # "scikit-learn",
+    # "scipy",
+    # "six",
     "sounddevice",
     "tensorflow-macos",
     "tensorflow-metal",
-    "werkzeug",
-    "wheel",
-    "wrapt",
+    # "werkzeug",
+    # "wheel",
+    # "wrapt",
 ]

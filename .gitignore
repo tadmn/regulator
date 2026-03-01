@@ -2,6 +2,8 @@ ml/audio-data*
 ml/labeled-audio-data
 ml/models
 
+build
+
 # Jetbrains
 .idea
 cmake-build-debug
