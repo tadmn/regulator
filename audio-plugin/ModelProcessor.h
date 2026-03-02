@@ -21,7 +21,7 @@ public:
     }
 
     void prepare() {
-        featureExtractor.prepare();
+        featureExtractor.settle();
         featuresFifo.clear();
         avgCentroid = 0.f;
         prediction = 1.f;

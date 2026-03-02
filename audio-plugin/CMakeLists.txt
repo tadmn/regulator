@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-include(../cmake/CPM.cmake)
+include(../shared/cmake/CPM.cmake)
 
 project(Regulator VERSION 1.0.0)
 
@@ -29,6 +29,6 @@ file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.
 target_sources(Regulator PRIVATE ${SOURCE_FILES})
 
 target_link_libraries(Regulator PRIVATE tad-bits choc FastFourier tb-litert)
-target_include_directories(Regulator PRIVATE ${Boost_INCLUDE_DIRS})
+target_include_directories(Regulator PRIVATE ${Boost_INCLUDE_DIRS} ../shared)
 target_compile_definitions(Regulator PRIVATE JUCE_VST3_CAN_REPLACE_VST2=0)
 add_compiler_warnings(Regulator)
