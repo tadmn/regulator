@@ -82,12 +82,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     {
         auto g = std::clamp(modelProcessor.prediction.load(std::memory_order_relaxed), 0.f, 1.f);
-        if (g > 0.7f) {
-            g = 1.f;
-        } else if (g < 0.3f) {
-            g = 0.f;
-        }
-
         gain.setTargetValue(g);
         gain.applyGain(buffer, buffer.getNumSamples());
     }

@@ -26,6 +26,8 @@ print("GPU devices:", tf.config.list_physical_devices('GPU'))
 
 default_num_epochs = 50
 
+labeled_audio_data = "/Users/tad/craft/regulator/ml/labeled-audio-data"
+
 # Will throw an error if GPU is not enabled
 with tf.device('/GPU:0'):
     a = tf.constant([[1.0, 2.0], [3.0, 4.0]])
@@ -46,11 +48,10 @@ class RegulatorTrainer:
         self.hop_length  = 512
 
         # Clip windowing
-        self.clip_hop_ms = 30
+        self.clip_hop_frames = int(self.sample_rate)
 
         # Derived constants
-        self.clip_frames     = int(self.sample_rate * self.duration)
-        self.clip_hop_frames = int(self.clip_hop_ms / 1000.0 * self.sample_rate)
+        self.clip_frames = int(self.sample_rate * self.duration)
 
         # How many STFT frames fit in one clip.
         # This becomes the runtime parameter passed to the C++ module.
@@ -59,7 +60,7 @@ class RegulatorTrainer:
         print("Trainer initialized:")
         print(f"  Sample rate:      {self.sample_rate} Hz")
         print(f"  Clip duration:    {self.duration}s  ({self.clip_frames} samples)")
-        print(f"  Clip hop:         {self.clip_hop_ms}ms")
+        print(f"  Clip hop:         {self.clip_hop_frames} frames")
         print(f"  Frames per clip:  {self.sets_per_clip}")
 
     # ------------------------------------------------------------------ #
@@ -71,8 +72,8 @@ class RegulatorTrainer:
         print("LOADING DATA")
         print("=" * 70)
 
-        pro_paths = [str(f) for f in Path('labeled-audio-data/pro').glob('*.wav')]
-        con_paths = [str(f) for f in Path('labeled-audio-data/con').glob('*.wav')]
+        pro_paths = [str(f) for f in Path(f'{labeled_audio_data}/pro').glob('*.wav')]
+        con_paths = [str(f) for f in Path(f'{labeled_audio_data}/con').glob('*.wav')]
 
         print(f"Extracting features for {len(pro_paths)} 'pro' files")
         pro_clips = audio_features.extractFeatures(
@@ -294,6 +295,8 @@ class RegulatorTrainer:
         print("=" * 70)
 
         X, y = self.prepare_dataset()
+        print("\nmean:", X.mean())
+        print("std:", X.std())
 
         if len(X) < 50:
             print(f"\nWARNING: Very small dataset ({len(X)} clips). "

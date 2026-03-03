@@ -238,11 +238,13 @@ py::array_t<float> extractFeatures(
         totalClips += fileClips.size();
 
     // ── Allocate 3D result array: (totalClips, framesPerClip, numFeatures)
-    py::array_t<float> result(std::vector<std::size_t>{
-        totalClips,
-        setsPerClip,
-        FeatureSet::numFeatures
-    });
+    std::vector<std::size_t> shape  = { totalClips, setsPerClip, FeatureSet::numFeatures };
+    std::vector<std::size_t> strides = {
+        setsPerClip * FeatureSet::numFeatures * sizeof(float),
+        FeatureSet::numFeatures * sizeof(float),
+        sizeof(float)
+    };
+    py::array_t<float> result(shape, strides);
     float* buf = result.mutable_data();
 
     // Row stride in floats: one clip = framesPerClip * numFeatures floats

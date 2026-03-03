@@ -51,7 +51,12 @@ public:
 
         const float centroid = tb::spectralCentroid(fftPowerMag, featuresSampleRate);
 
-        return centroid;
+        // Normalize — constants derived from training data
+        constexpr float kCentroidMean = 616.72565f;
+        constexpr float kCentroidStd  = 664.54834f;
+        const auto normalizedCentroid = (centroid - kCentroidMean) / kCentroidStd;
+
+        return normalizedCentroid;
     }
 
     void process(choc::buffer::ChannelArrayView<float> audioIn,
