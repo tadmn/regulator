@@ -46,9 +46,7 @@ class RegulatorTrainer:
         self.duration    = 3.0
         self.n_fft       = 2048
         self.hop_length  = 512
-
-        # Clip windowing
-        self.clip_hop_frames = int(self.sample_rate * 60.0)
+        self.clip_hop_frames = int(self.sample_rate)
 
         # Derived constants
         self.clip_frames = int(self.sample_rate * self.duration)
@@ -61,11 +59,7 @@ class RegulatorTrainer:
         print(f"  Sample rate:      {self.sample_rate} Hz")
         print(f"  Clip duration:    {self.duration}s  ({self.clip_frames} samples)")
         print(f"  Clip hop:         {self.clip_hop_frames} frames")
-        print(f"  Frames per clip:  {self.sets_per_clip}")
-
-    # ------------------------------------------------------------------ #
-    # Feature extraction — single bulk C++ call, fully multithreaded      #
-    # ------------------------------------------------------------------ #
+        print(f"  Sets per clip:  {self.sets_per_clip}")
 
     def prepare_dataset(self):
         print("\n" + "=" * 70)

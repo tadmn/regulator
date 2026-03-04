@@ -11,8 +11,9 @@
 class ModelProcessor {
 public:
     static constexpr double modelSampleRate = 22050.0;
+    static constexpr int modelInputFeatureSets = 126;
 
-    ModelProcessor() : featuresFifo(129) {}
+    ModelProcessor() : featuresFifo(modelInputFeatureSets) {}
     ~ModelProcessor() {}
 
     tb::Result loadModel(const std::string& modelPath) {
