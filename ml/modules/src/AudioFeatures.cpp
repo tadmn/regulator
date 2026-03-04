@@ -54,10 +54,8 @@ static std::vector<Clip> extractFeaturesForFile(
         std::size_t        clipHopFrames)
 {
     auto wav = loadWav(filePath);
-    if (wav.empty()) {
-        std::cerr << filePath << " is empty" << "\n";
-        return {};
-    }
+    if (wav.empty())
+        throw std::runtime_error("File " + filePath + " is empty");
 
     float* f[1];
     f[0] = wav.data();
@@ -70,9 +68,8 @@ static std::vector<Clip> extractFeaturesForFile(
     uint32_t startFrame = 0;
     while (true) {
         uint32_t endFrame = startFrame + clipFrames;
-        if (endFrame > wav.size()) {
+        if (endFrame > wav.size())
             return clips;
-        }
 
         Clip clip;
         const auto clipAudio = audio.getFrameRange({startFrame, endFrame});
@@ -83,7 +80,9 @@ static std::vector<Clip> extractFeaturesForFile(
                               clip.push_back({ .spectralCentroid = featureSet });
                           });
 
-        tb_assert(clip.size() == setsPerClip);
+        if (clip.size() != setsPerClip )
+            throw std::runtime_error("clip size mismatch");
+
         clips.push_back(std::move(clip));
 
         startFrame += clipHopFrames;
@@ -185,9 +184,7 @@ py::array_t<float> extractFeatures(
         std::size_t                     nThreads = 0)
 {
     if (paths.empty())
-        return py::array_t<float>(
-            std::vector<std::size_t>{0, setsPerClip, FeatureSet::numFeatures});
-
+        throw std::runtime_error("paths is empty");
     if (setsPerClip == 0)
         throw std::invalid_argument("framesPerClip must be > 0");
     if (clipHopFrames == 0)

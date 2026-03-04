@@ -17,7 +17,7 @@ public:
     FeatureExtractor() :
         mResampler(kNumChannels, kSrcQuality),
         mResampledBuffer(kNumChannels, kFftSize),
-        mWindow(tb::window<float>(tb::WindowType::Hamming, kFftSize)),
+        mWindow(tb::window<float>(tb::WindowType::Hann, kFftSize)),
         mFifoBuffer(kNumChannels, kFftSize),
         mFftInBuffer(kNumChannels, kFftSize),
         mFft(kFftSize) {

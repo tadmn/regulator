@@ -48,14 +48,14 @@ class RegulatorTrainer:
         self.hop_length  = 512
 
         # Clip windowing
-        self.clip_hop_frames = int(self.sample_rate)
+        self.clip_hop_frames = int(self.sample_rate * 60.0)
 
         # Derived constants
         self.clip_frames = int(self.sample_rate * self.duration)
 
-        # How many STFT frames fit in one clip.
+        # How many STFT sets fit in one clip.
         # This becomes the runtime parameter passed to the C++ module.
-        self.sets_per_clip  = int(self.clip_frames / self.hop_length)  # e.g. 129
+        self.sets_per_clip = (self.clip_frames - self.n_fft) // self.hop_length + 1
 
         print("Trainer initialized:")
         print(f"  Sample rate:      {self.sample_rate} Hz")
