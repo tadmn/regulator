@@ -18,19 +18,21 @@
 
 namespace py = pybind11;
 
-struct FeatureSet {
-    float spectralCentroid = 0.f;
+// FeatureSet is now just the fixed-size array produced by FeatureExtractor.
+// numFeatures is read directly from FeatureExtractor::kNumFeatures so there
+// is a single source of truth — changing the extractor automatically flows
+// through to the numpy array shape.
+using FeatureSet = std::array<float, FeatureExtractor::kNumFeatures>;
+using Clip       = std::vector<FeatureSet>;
 
-    static constexpr std::size_t numFeatures = 1;
+static constexpr std::size_t kNumFeatures = FeatureExtractor::kNumFeatures;
 
-    void flatten(float* dst) const {
-        *dst = spectralCentroid;
-    }
+struct WavFile {
+    std::vector<float> samples;
+    double             sampleRate = 0.0;
 };
 
-using Clip = std::vector<FeatureSet>;
-
-std::vector<float> loadWav(const std::string& path) {
+WavFile loadWav(const std::string& path) {
     SF_INFO info = {};
     SNDFILE* file = sf_open(path.c_str(), SFM_READ, &info);
     if (! file) {
@@ -45,7 +47,7 @@ std::vector<float> loadWav(const std::string& path) {
     if (read != info.frames)
         std::cerr << "Read " << read << " frames, expected " << info.frames << "\n";
 
-    return samples;
+    return { std::move(samples), static_cast<double>(info.samplerate) };
 }
 
 static std::vector<Clip> extractFeaturesForFile(
@@ -54,33 +56,32 @@ static std::vector<Clip> extractFeaturesForFile(
         std::size_t        clipHopFrames)
 {
     auto wav = loadWav(filePath);
-    if (wav.empty())
+    if (wav.samples.empty())
         throw std::runtime_error("File " + filePath + " is empty");
 
     float* f[1];
-    f[0] = wav.data();
-    const auto audio = choc::buffer::createChannelArrayView(f, 1, wav.size());
+    f[0] = wav.samples.data();
+    const auto audio = choc::buffer::createChannelArrayView(f, 1, wav.samples.size());
 
-    FeatureExtractor extractor;
+    FeatureExtractor extractor(wav.sampleRate);
     std::vector<Clip> clips;
     const auto clipFrames = FeatureExtractor::kFftSize + (setsPerClip - 1) * FeatureExtractor::kHopSize;
 
     uint32_t startFrame = 0;
     while (true) {
         uint32_t endFrame = startFrame + clipFrames;
-        if (endFrame > wav.size())
+        if (endFrame > wav.samples.size())
             return clips;
 
         Clip clip;
         const auto clipAudio = audio.getFrameRange({startFrame, endFrame});
         extractor.process(clipAudio,
-                          22050.0,
-                          22050.0,
-                          [&clip](float featureSet) {
-                              clip.push_back({ .spectralCentroid = featureSet });
+                          wav.sampleRate,
+                          [&clip](const FeatureExtractor::FeatureArray& featureSet) {
+                              clip.push_back(featureSet);
                           });
 
-        if (clip.size() != setsPerClip )
+        if (clip.size() != setsPerClip)
             throw std::runtime_error("clip size mismatch");
 
         clips.push_back(std::move(clip));
@@ -174,7 +175,7 @@ static std::vector<std::vector<Clip>> extractAllFiles(
         const std::vector<std::string>& paths,
         std::size_t                     setsPerClip,
         std::size_t                     clipHopFrames,
-        std::size_t                     nThreads = 0)
+        std::size_t                     nThreads)
 {
     const std::size_t nFiles = paths.size();
     nThreads = std::min(nThreads, nFiles);
@@ -182,8 +183,7 @@ static std::vector<std::vector<Clip>> extractAllFiles(
     // Pre-sized so threads write to non-overlapping indices — no mutex needed.
     std::vector<std::vector<Clip>> perFileResults(nFiles);
 
-    // Only print progress if we're processing multiple files
-    auto progress = paths.size() > 1 ? std::optional<ProgressReporter>(nFiles) : std::nullopt;
+    ProgressReporter progress(nFiles);
 
     const std::size_t chunkSize = (nFiles + nThreads - 1) / nThreads;
 
@@ -197,8 +197,7 @@ static std::vector<std::vector<Clip>> extractAllFiles(
         futures.push_back(std::async(std::launch::async, [&, start, end] {
             for (std::size_t i = start; i < end; ++i) {
                 perFileResults[i] = extractFeaturesForFile(paths[i], setsPerClip, clipHopFrames);
-                if (progress.has_value())
-                    progress->fileCompleted(perFileResults[i].size());
+                progress.fileCompleted(perFileResults[i].size());
             }
         }));
     }
@@ -206,8 +205,7 @@ static std::vector<std::vector<Clip>> extractAllFiles(
     for (auto& f : futures)
         f.get();   // re-throws any worker exception on this thread
 
-    if (progress.has_value())
-        progress->finish();
+    progress.finish();
 
     return perFileResults;
 }
@@ -225,24 +223,24 @@ static py::array_t<float> flattenToArray(
     for (const auto& fileClips : perFileResults)
         totalClips += fileClips.size();
 
-    std::vector<std::size_t> shape   = { totalClips, setsPerClip, FeatureSet::numFeatures };
+    std::vector<std::size_t> shape   = { totalClips, setsPerClip, kNumFeatures };
     std::vector<std::size_t> strides = {
-        setsPerClip * FeatureSet::numFeatures * sizeof(float),
-        FeatureSet::numFeatures * sizeof(float),
+        setsPerClip * kNumFeatures * sizeof(float),
+        kNumFeatures * sizeof(float),
         sizeof(float)
     };
     py::array_t<float> result(shape, strides);
     float* buf = result.mutable_data();
 
-    const std::size_t clipStride  = setsPerClip * FeatureSet::numFeatures;
-    const std::size_t frameStride = FeatureSet::numFeatures;
+    const std::size_t clipStride  = setsPerClip * kNumFeatures;
+    const std::size_t frameStride = kNumFeatures;
 
     std::size_t clipIdx = 0;
     for (const auto& fileClips : perFileResults) {
         for (const auto& clip : fileClips) {
             float* clipPtr = buf + clipIdx * clipStride;
             for (std::size_t f = 0; f < setsPerClip; ++f)
-                clip[f].flatten(clipPtr + f * frameStride);
+                std::copy(clip[f].begin(), clip[f].end(), clipPtr + f * frameStride);
             ++clipIdx;
         }
     }
@@ -337,14 +335,6 @@ extractFeaturesWithCounts(
 
 PYBIND11_MODULE(audio_features, m) {
     m.doc() = "Multi-threaded audio feature extraction";
-
-    py::class_<FeatureSet>(m, "FeatureSet")
-        .def(py::init<>())
-        .def_readwrite("spectralCentroid", &FeatureSet::spectralCentroid)
-        .def("__repr__", [](const FeatureSet& fs) {
-            return "<FeatureSet spectralCentroid=" +
-                   std::to_string(fs.spectralCentroid) + ">";
-        });
 
     m.def("extractFeatures",
           &extractFeatures,

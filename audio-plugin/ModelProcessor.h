@@ -10,10 +10,16 @@
 
 class ModelProcessor {
 public:
-    static constexpr double modelSampleRate = 22050.0;
-    static constexpr int modelInputFeatureSets = 126;
+    static constexpr double modelSampleRate      = 22050.0;
+    static constexpr int    modelInputFeatureSets = 126;
 
-    ModelProcessor() : featuresFifo(modelInputFeatureSets) {}
+    // Each fifo slot is a full FeatureArray; capacity = one clip's worth of sets
+    using FeatureFifo = boost::circular_buffer<FeatureExtractor::FeatureArray>;
+
+    ModelProcessor() :
+        featuresFifo(modelInputFeatureSets),
+        featureExtractor(modelSampleRate) {}
+
     ~ModelProcessor() {}
 
     tb::Result loadModel(const std::string& modelPath) {
@@ -24,43 +30,47 @@ public:
     void prepare() {
         featureExtractor.settle();
         featuresFifo.clear();
-        avgCentroid = 0.f;
         prediction = 1.f;
     }
 
     void process(choc::buffer::ChannelArrayView<float> audioIn, double inSampleRate) {
-        if (! model.modelLoaded()) {
+        if (! model.modelLoaded())
             return;
-        }
 
-        featureExtractor.process(audioIn, inSampleRate, modelSampleRate,
-             [this](float f) {
-                 featuresFifo.push_front(f);
-                 if (featuresFifo.full()) {
-                     featuresFifo.linearize();
+        featureExtractor.process(audioIn, inSampleRate,
+            [this](const FeatureExtractor::FeatureArray& featureSet) {
+                featuresFifo.push_front(featureSet);
 
-                     std::span in(featuresFifo.array_one().first,featuresFifo.size());
-                     std::array<float, 2> out = {};
+                if (featuresFifo.full()) {
+                    featuresFifo.linearize();
 
-                     if (auto r = model.process(in, out); ! r.empty()) {
-                         throw std::runtime_error(r);
-                     }
+                    // Flatten the circular buffer into a contiguous float span:
+                    //   (modelInputFeatureSets × kNumFeatures) floats
+                    static constexpr int kN = modelInputFeatureSets * FeatureExtractor::kNumFeatures;
+                    std::array<float, kN> flat = {};
+                    auto* dst = flat.data();
+                    for (const auto& fs : featuresFifo) {
+                        std::copy(fs.begin(), fs.end(), dst);
+                        dst += FeatureExtractor::kNumFeatures;
+                    }
 
-                     avgCentroid = std::reduce(in.begin(), in.end()) / in.size();
-                     prediction = out[0];
-                 }
-             });
+                    std::array<float, 2> out = {};
+                    if (auto r = model.process(std::span<const float>(flat), out); ! r.empty())
+                        throw std::runtime_error(r);
+
+                    prediction = out[0];
+                }
+            });
     }
 
-    std::atomic<float> avgCentroid = 0.f;
     std::atomic<float> prediction = 1.f;
 
 private:
+    FeatureFifo      featuresFifo;
     FeatureExtractor featureExtractor;
-    boost::circular_buffer<float> featuresFifo;
-    tb::LiteRt model;
+    tb::LiteRt       model;
 
 public:
-    ModelProcessor(ModelProcessor const &) = delete;
-    ModelProcessor & operator=(ModelProcessor const &) = delete;
+    ModelProcessor(ModelProcessor const &)            = delete;
+    ModelProcessor& operator=(ModelProcessor const &) = delete;
 };

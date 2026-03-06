@@ -46,7 +46,7 @@ class RegulatorTrainer:
         self.duration    = 3.0
         self.n_fft       = 2048
         self.hop_length  = 512
-        self.clip_hop_frames = int(self.sample_rate * 0.25)
+        self.clip_hop_frames = int(self.sample_rate * 1.5)
 
         # Derived constants
         self.clip_frames = int(self.sample_rate * self.duration)
