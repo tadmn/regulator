@@ -42,7 +42,7 @@ tb::Result AudioPluginAudioProcessor::loadModel(const std::string& path) {
 
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/) {
     modelProcessor.prepare();
-    gain.reset(sampleRate, 0.01);
+    gain.reset(sampleRate, 0.6);
     gain.setCurrentAndTargetValue(1.f);
 }
 
