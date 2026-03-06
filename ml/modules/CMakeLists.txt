@@ -7,7 +7,7 @@ project(audio_features LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-CPMAddPackage("gh:tadmn/tad-bits#3e79ba0eee59fccf7c74ea7b48de056313f86e0b")
+CPMAddPackage("gh:tadmn/tad-bits#1838a0c2c5bbf1695c80eacda2cfb537fcaf73a4")
 include(${tad-bits_SOURCE_DIR}/cmake/compile-options.cmake)
 
 CPMAddPackage("gh:tadmn/FastFourier#453106d9d2995aaca8cf53ea556749c1e07bdb05")
