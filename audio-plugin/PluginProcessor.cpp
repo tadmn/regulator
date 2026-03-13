@@ -13,7 +13,6 @@ struct ScopedSuspendProcessing {
     AudioPluginAudioProcessor& processor;
 };
 
-//==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
@@ -27,7 +26,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 
-//==============================================================================
 tb::Result AudioPluginAudioProcessor::loadModel(const std::string& path) {
     ScopedSuspendProcessing ssp(*this);
     modelFile = "";
@@ -87,7 +85,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 }
 
-//==============================================================================
 void AudioPluginAudioProcessor::getStateInformation (juce::MemoryBlock& destData) {
     juce::MemoryOutputStream outputStream(destData, false);
     outputStream << modelFile.getFullPathName();
@@ -98,7 +95,6 @@ void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeI
     loadModel(inputStream.readString().toStdString());
 }
 
-//==============================================================================
 const juce::String AudioPluginAudioProcessor::getName() const {
     return JucePlugin_Name;
 }
@@ -151,15 +147,12 @@ const juce::String AudioPluginAudioProcessor::getProgramName (int /*index*/) {
 void AudioPluginAudioProcessor::changeProgramName (int /*index*/, const juce::String& /*newName*/) {
 }
 
-//==============================================================================
 bool AudioPluginAudioProcessor::hasEditor() const { return true; }
 
 juce::AudioProcessorEditor* AudioPluginAudioProcessor::createEditor() {
     return new AudioPluginAudioProcessorEditor(*this);
 }
 
-//==============================================================================
-// This creates new instances of the plugin
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new AudioPluginAudioProcessor();
 }

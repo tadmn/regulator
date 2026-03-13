@@ -1,10 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-//==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
-    : AudioProcessorEditor (&p), processorRef (p)
-{
+    : AudioProcessorEditor (&p), processorRef (p) {
     addAndMakeVisible(predictionLabel);
     predictionLabel.setJustificationType(juce::Justification::centred);
     predictionLabel.setFont({juce::FontOptions(27.f)});
@@ -16,19 +14,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     startTimer(30);
 }
 
-AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor()
-{
-}
+AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {}
 
-//==============================================================================
-void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g)
-{
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
+void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
 }
 
-void AudioPluginAudioProcessorEditor::resized()
-{
+void AudioPluginAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
     modelFileLabel.setBounds(b.removeFromTop(22 ));
     predictionLabel.setBounds(b);
@@ -41,8 +33,7 @@ void AudioPluginAudioProcessorEditor::filesDropped(const juce::StringArray& file
     }
 }
 
-void AudioPluginAudioProcessorEditor::timerCallback()
-{
+void AudioPluginAudioProcessorEditor::timerCallback() {
     predictionLabel.setText(juce::String(processorRef.modelProcessor.prediction, 2), juce::dontSendNotification);
 
     {
