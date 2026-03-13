@@ -1,7 +1,9 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
+#include "PluginParameters.h"
 #include "ModelProcessor.h"
 
 //==============================================================================
@@ -44,14 +46,17 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    ModelProcessor modelProcessor;
-    tb::Result loadModel(const std::string& path);
+    PluginParameters params;
 
-    const juce::File& getModelFile() const { return modelFile; }
+    ModelProcessor modelProcessor;
+
+    void loadModel();
+
+    void showWarningMessage(const std::string msg);
 
 private:
-    juce::File modelFile;
     juce::LinearSmoothedValue<float> gain;
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::None> delay;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

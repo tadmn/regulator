@@ -21,7 +21,11 @@ public:
     void fileDragEnter (const juce::StringArray&, int, int) override {}
 
 private:
-    juce::Label predictionLabel, modelFileLabel;
     AudioPluginAudioProcessor& processorRef;
+
+    juce::Label predictionLabel, modelFileLabel;
+    juce::Slider delaySlider;
+
+    juce::AudioProcessorValueTreeState::SliderAttachment delaySliderAttachment;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

@@ -21,27 +21,46 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::mono(), true)
                      #endif
-                       ) {
+                       )
+    , params(*this) {
+    params.onChange(Param::modelPath) = [this]{ loadModel(); };
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 
-tb::Result AudioPluginAudioProcessor::loadModel(const std::string& path) {
-    ScopedSuspendProcessing ssp(*this);
-    modelFile = "";
+void AudioPluginAudioProcessor::loadModel() {
+    const auto path = params.getModelPath();
+    if (path.empty())
+        return;
 
-    if (auto result = modelProcessor.loadModel(path); ! result) {
-        return result;
+    const ScopedSuspendProcessing ssp(*this);
+
+    const auto result = modelProcessor.loadModel(params.getModelPath());
+    if (! result) {
+        showWarningMessage("Failed to load model: " + result.msg);
+        params.setModelPath("");
     }
-
-    modelFile = path;
-    return {};
 }
 
-void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/) {
+void AudioPluginAudioProcessor::showWarningMessage(const std::string msg) {
+    juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon, JucePlugin_Name, msg);
+}
+
+void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock) {
+    jassert(getMainBusNumInputChannels() == getMainBusNumOutputChannels());
+
     modelProcessor.prepare();
     gain.reset(sampleRate, 0.6);
     gain.setCurrentAndTargetValue(1.f);
+
+    juce::dsp::ProcessSpec spec {
+        .sampleRate = sampleRate,
+        .maximumBlockSize = static_cast<uint32_t>(samplesPerBlock),
+        .numChannels = static_cast<uint32_t>(getMainBusNumInputChannels())
+    };
+
+    delay.setMaximumDelayInSamples(sampleRate * params.getRange(Param::delay).end / 1'000.0);
+    delay.prepare(spec);
 }
 
 void AudioPluginAudioProcessor::releaseResources() {}
@@ -79,6 +98,14 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     modelProcessor.process(audio, getSampleRate());
 
     {
+        delay.setDelay(int(params.getDelay() * getSampleRate() / 1'000.0));
+
+        juce::dsp::AudioBlock<float> block { buffer };
+        juce::dsp::ProcessContextReplacing<float> ctx { block };
+        delay.process(ctx);
+    }
+
+    {
         auto g = std::clamp(modelProcessor.prediction.load(std::memory_order_relaxed), 0.f, 1.f);
         gain.setTargetValue(g > 0.5f ? 1.f : 0.f);
         gain.applyGain(buffer, buffer.getNumSamples());
@@ -86,13 +113,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 }
 
 void AudioPluginAudioProcessor::getStateInformation (juce::MemoryBlock& destData) {
-    juce::MemoryOutputStream outputStream(destData, false);
-    outputStream << modelFile.getFullPathName();
+    params.getStateInformation(destData);
 }
 
 void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeInBytes) {
-    juce::MemoryInputStream inputStream(data, sizeInBytes, false);
-    loadModel(inputStream.readString().toStdString());
+    params.setStateInformation(data, sizeInBytes);
 }
 
 const juce::String AudioPluginAudioProcessor::getName() const {

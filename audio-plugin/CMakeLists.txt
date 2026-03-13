@@ -28,7 +28,7 @@ juce_add_plugin(Regulator
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 target_sources(Regulator PRIVATE ${SOURCE_FILES})
 
-target_link_libraries(Regulator PRIVATE tad-bits choc FastFourier tb-litert)
+target_link_libraries(Regulator PRIVATE tad-bits choc FastFourier tb-litert juce::juce_dsp)
 target_include_directories(Regulator PRIVATE ${Boost_INCLUDE_DIRS} ../shared)
 target_compile_definitions(Regulator PRIVATE JUCE_VST3_CAN_REPLACE_VST2=0)
 add_compiler_warnings(Regulator)

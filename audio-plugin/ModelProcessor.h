@@ -10,7 +10,7 @@
 
 class ModelProcessor {
 public:
-    static constexpr double modelSampleRate      = 22050.0;
+    static constexpr double modelSampleRate       = 22050.0;
     static constexpr int    modelInputFeatureSets = 126;
 
     // Each fifo slot is a full FeatureArray; capacity = one clip's worth of sets
