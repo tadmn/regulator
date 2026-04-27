@@ -6,7 +6,7 @@ project(Regulator VERSION 1.0.0)
 
 option(USE_SANITIZER "Build and link with the address sanitizer" OFF)
 
-CPMAddPackage("gh:tadmn/tad-bits#1838a0c2c5bbf1695c80eacda2cfb537fcaf73a4")
+CPMAddPackage("gh:tadmn/tad-bits#ca19bcae0980c26db22d123311dafa07af9746ac")
 include(${tad-bits_SOURCE_DIR}/cmake/compile-options.cmake)
 
 CPMAddPackage("gh:tadmn/choc#2f5b8627708ff4702b4fb6646fddf0c5f4a52007")
